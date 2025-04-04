@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Attendance System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Smart Attendance System</h1>
+        </header>
+        
+        <main>
+            <div class="card-container">
+                <div class="card">
+                    <h2>Take Attendance</h2>
+                    <p>Capture image or upload photos to record attendance for registered students.</p>
+                    <a href="/attendance" class="btn">Go to Attendance</a>
+                </div>
+                
+                <div class="card">
+                    <h2>Register Student</h2>
+                    <p>Register new students by capturing or uploading facial images.</p>
+                    <a href="/register" class="btn">Go to Registration</a>
+                </div>
+            </div>
+            
+            <div class="admin-section">
+                <h2>Administration</h2>
+                <div class="card">
+                    <h3>Reset System</h3>
+                    <p>Warning: This will delete all student data, images, and attendance records.</p>
+                    <button id="reset-btn" class="btn btn-danger">Reset System</button>
+                    <div id="reset-confirmation" class="confirmation-box" style="display: none;">
+                        <p>Are you sure? This action cannot be undone.</p>
+                        <button id="confirm-reset" class="btn btn-danger">Yes, Reset Everything</button>
+                        <button id="cancel-reset" class="btn">Cancel</button>
+                    </div>
+                    <div id="reset-status" class="status-message"></div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Smart Attendance System &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const resetBtn = document.getElementById('reset-btn');
+            const resetConfirmation = document.getElementById('reset-confirmation');
+            const confirmResetBtn = document.getElementById('confirm-reset');
+            const cancelResetBtn = document.getElementById('cancel-reset');
+            const resetStatus = document.getElementById('reset-status');
+            
+            // Show confirmation box
+            resetBtn.addEventListener('click', function() {
+                resetConfirmation.style.display = 'block';
+                resetBtn.style.display = 'none';
+            });
+            
+            // Hide confirmation box
+            cancelResetBtn.addEventListener('click', function() {
+                resetConfirmation.style.display = 'none';
+                resetBtn.style.display = 'inline-block';
+            });
+            
+            // Handle reset
+            confirmResetBtn.addEventListener('click', function() {
+                resetStatus.textContent = 'Resetting system...';
+                resetStatus.className = 'status-message';
+                
+                fetch('/api/reset_system', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        resetStatus.textContent = 'System reset successful!';
+                        resetStatus.className = 'status-message success';
+                    } else {
+                        resetStatus.textContent = 'Error: ' + data.message;
+                        resetStatus.className = 'status-message error';
+                    }
+                    
+                    resetConfirmation.style.display = 'none';
+                    resetBtn.style.display = 'inline-block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resetStatus.textContent = 'Error resetting system.';
+                    resetStatus.className = 'status-message error';
+                    
+                    resetConfirmation.style.display = 'none';
+                    resetBtn.style.display = 'inline-block';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

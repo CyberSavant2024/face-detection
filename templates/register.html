@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Student - Smart Attendance System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Register Student</h1>
+            <a href="/" class="btn-back">Back to Home</a>
+        </header>
+        
+        <main>
+            <div class="registration-form">
+                <div class="form-group">
+                    <label for="student-name">Student Name:</label>
+                    <input type="text" id="student-name" required>
+                </div>
+                
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="camera">Capture Images</button>
+                    <button class="tab-btn" data-tab="upload">Upload Images</button>
+                </div>
+                
+                <div class="tab-content" id="camera-tab">
+                    <div class="camera-container">
+                        <video id="video" width="640" height="480" autoplay></video>
+                        <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+                        <div id="capture-count">Capture facial images (0 captured)</div>
+                        <div class="camera-buttons">
+                            <button id="capture-btn" class="btn">Capture Image</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="upload-tab" style="display: none;">
+                    <div class="upload-container">
+                        <div class="form-group">
+                            <label for="image-upload">Upload Student Images:</label>
+                            <input type="file" id="image-upload" accept="image/*" multiple>
+                            <p class="help-text">Select multiple images of the student (JPG, PNG)</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="preview-container">
+                    <h3>Captured/Uploaded Images</h3>
+                    <div class="captured-images-container">
+                        <div class="captured-images" id="captured-images-container">
+                            <!-- Images will be added here dynamically -->
+                        </div>
+                    </div>
+                    <button id="clear-images" class="btn-secondary">Clear All Images</button>
+                </div>
+                
+                <div class="form-buttons">
+                    <button id="register-btn" class="btn" disabled>Register Student</button>
+                    <button id="train-btn" class="btn">Train Model</button>
+                </div>
+                
+                <div id="registration-status" class="status-message"></div>
+                <div id="training-status" class="status-message"></div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Smart Attendance System &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <script src="/static/js/register.js"></script>
+</body>
+</html>

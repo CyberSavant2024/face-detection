@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Attendance - Smart Attendance System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Take Attendance</h1>
+            <a href="/" class="btn-back">Back to Home</a>
+        </header>
+        
+        <main>
+            <div class="attendance-form">
+                <div class="form-group">
+                    <label for="attendance-date">Date:</label>
+                    <input type="date" id="attendance-date" required>
+                </div>
+                
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="camera">Capture Image</button>
+                    <button class="tab-btn" data-tab="upload">Upload Image</button>
+                </div>
+                
+                <div class="tab-content" id="camera-tab">
+                    <div class="camera-container">
+                        <video id="video" width="640" height="480" autoplay></video>
+                        <canvas id="canvas" width="640" height="480" style="display: none;"></canvas>
+                        <div class="camera-buttons">
+                            <button id="capture-btn" class="btn">Capture Image</button>
+                            <button id="retake-btn" class="btn" style="display: none;">Retake</button>
+                        </div>
+                    </div>
+                    
+                    <div id="preview-container" style="display: none;">
+                        <h3>Preview</h3>
+                        <img id="captured-image" src="" alt="Captured image">
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="upload-tab" style="display: none;">
+                    <div class="upload-container">
+                        <div class="form-group">
+                            <label for="attendance-image-upload">Upload Image:</label>
+                            <input type="file" id="attendance-image-upload" accept="image/*">
+                            <p class="help-text">Select an image file (JPG, PNG)</p>
+                        </div>
+                        <div id="upload-preview" style="display: none;">
+                            <h3>Preview</h3>
+                            <img id="uploaded-image" src="" alt="Uploaded image">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-buttons">
+                    <button id="process-attendance-btn" class="btn">Process Attendance</button>
+                </div>
+                
+                <div class="attendance-result" id="recognition-result">
+                    <p>Capture or upload an image to mark attendance.</p>
+                </div>
+            </div>
+            
+            <div class="attendance-table">
+                <h2>Attendance for <span id="selected-date"></span></h2>
+                <table id="attendance-list">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Attendance data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Smart Attendance System &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <script src="/static/js/attendance.js"></script>
+</body>
+</html>

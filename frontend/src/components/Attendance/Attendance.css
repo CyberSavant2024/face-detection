@@ -1,0 +1,105 @@
+.attendance-container h1 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.preview-container {
+  margin: 20px 0;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  text-align: center;
+}
+
+.preview-container h3 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.captured-image-container {
+  max-width: 640px;
+  margin: 0 auto 20px;
+}
+
+.captured-image-container img {
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.recognition-result {
+  margin: 20px 0;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  text-align: center;
+}
+
+.recognition-result.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.recognition-result.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.attendance-table-container {
+  margin-top: 30px;
+}
+
+.attendance-table-container h2 {
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  background-color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.attendance-table th,
+.attendance-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.attendance-table th {
+  background-color: #34495e;
+  color: white;
+}
+
+.attendance-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.attendance-table tr:hover {
+  background-color: #f1f1f1;
+}
+
+.no-records {
+  text-align: center;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  color: #6c757d;
+  margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+  .attendance-table th,
+  .attendance-table td {
+    padding: 10px;
+    font-size: 14px;
+  }
+}
