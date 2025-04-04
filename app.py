@@ -59,8 +59,17 @@ def register_student():
                 try:
                     # Convert base64 to image and save
                     image = face_recognizer.base64_to_image(image_data)
-                    cv2.imwrite(f'{save_path}/{i}.jpg', image)
-                    images.append(image)
+                    
+                    # Already cropped on client side, but double-check for better face detection
+                    face_image = face_recognizer.detect_and_crop_face(image)
+                    if face_image is not None:
+                        cv2.imwrite(f'{save_path}/{i}.jpg', face_image)
+                        images.append(face_image)
+                    else:
+                        # Fall back to the original image if face detection fails
+                        cv2.imwrite(f'{save_path}/{i}.jpg', image)
+                        images.append(image)
+                        print(f"Warning: No face detected in image {i}, using full image")
                 except Exception as e:
                     print(f"Error processing image {i}: {e}")
     
@@ -68,8 +77,30 @@ def register_student():
     uploaded_files = request.files.getlist('uploaded_images')
     for i, file in enumerate(uploaded_files):
         if file.filename:
-            file_path = f'{save_path}/{image_count + i}.jpg'
-            file.save(file_path)
+            try:
+                temp_path = f'temp_upload_{i}.jpg'
+                file.save(temp_path)
+                
+                # Read the uploaded image
+                image = cv2.imread(temp_path)
+                
+                # Detect and crop face
+                face_image = face_recognizer.detect_and_crop_face(image)
+                
+                if face_image is not None:
+                    # Save the cropped face
+                    cv2.imwrite(f'{save_path}/{image_count + i}.jpg', face_image)
+                else:
+                    # Save the original image if no face detected
+                    cv2.imwrite(f'{save_path}/{image_count + i}.jpg', image)
+                    print(f"Warning: No face detected in uploaded file {i}, using full image")
+                
+                # Clean up temp file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    
+            except Exception as e:
+                print(f"Error processing uploaded file {i}: {e}")
     
     print(f"Registered student {name} with ID {student_id} and {len(images)} images")
     return jsonify({'success': True, 'student_id': student_id})
@@ -90,10 +121,21 @@ def take_attendance():
     image_data = request.form.get('image')
     if image_data:
         image = face_recognizer.base64_to_image(image_data)
-        students = face_recognizer.recognize_faces(image)
-        recognized_students.extend(students)
+        
+        # For attendance, we want to detect all faces in the image
+        face_images = face_recognizer.extract_all_faces(image)
+        
+        if face_images:
+            # Process each detected face
+            for face_img in face_images:
+                students = face_recognizer.recognize_faces(face_img)
+                recognized_students.extend(students)
+        else:
+            # Fall back to the full image if no faces detected
+            students = face_recognizer.recognize_faces(image)
+            recognized_students.extend(students)
     
-    # Check if uploaded image is provided
+    # Handle uploaded image similarly
     if 'uploaded_image' in request.files:
         uploaded_file = request.files['uploaded_image']
         if uploaded_file.filename:
@@ -104,8 +146,18 @@ def take_attendance():
             # Process the image
             image = cv2.imread(temp_path)
             if image is not None:
-                students = face_recognizer.recognize_faces(image)
-                recognized_students.extend(students)
+                # Extract all faces
+                face_images = face_recognizer.extract_all_faces(image)
+                
+                if face_images:
+                    # Process each detected face
+                    for face_img in face_images:
+                        students = face_recognizer.recognize_faces(face_img)
+                        recognized_students.extend(students)
+                else:
+                    # Fall back to the full image
+                    students = face_recognizer.recognize_faces(image)
+                    recognized_students.extend(students)
             
             # Remove temporary file
             if os.path.exists(temp_path):
@@ -177,14 +229,30 @@ def check_duplicate_face():
         # Check if face exists
         exists, student_id = face_recognizer.check_face_exists(image)
         
-        if exists:
+        if exists and student_id:
             # Get student details
             student = db.get_student_by_id(student_id)
+            
+            # Check if we actually got a valid student name
+            student_name = student.get('name')
+            if not student_name or student_name == 'Unknown Student':
+                # If the student record doesn't exist anymore
+                print(f"Warning: Face recognized with ID {student_id} but no matching student record found")
+                
+                # Retrain the model to remove this face encoding
+                face_recognizer.train_model()
+                
+                return jsonify({
+                    'success': True,
+                    'exists': False,
+                    'message': 'Face data was outdated and has been updated. Please try again.'
+                })
+            
             return jsonify({
                 'success': True,
                 'exists': True,
                 'student_id': student_id,
-                'student_name': student.get('name')
+                'student_name': student_name
             })
         else:
             return jsonify({

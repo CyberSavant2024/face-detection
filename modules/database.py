@@ -88,9 +88,13 @@ class Database:
         cursor.execute("SELECT id, name, registration_date FROM students WHERE id = ?", (student_id,))
         student = cursor.fetchone()
         
-        result = dict(student) if student else {}
-        conn.close()
+        # Properly handle the case where no student record is found
+        if student:
+            result = dict(student)
+        else:
+            result = {'id': student_id, 'name': 'Unknown Student', 'registration_date': None}
         
+        conn.close()
         return result
     
     def mark_attendance(self, student_id, date):

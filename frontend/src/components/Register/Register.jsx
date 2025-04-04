@@ -70,15 +70,25 @@ const Register = () => {
       const duplicateCheck = await checkDuplicateFace(imageToCheck);
       
       if (duplicateCheck.exists) {
+        // Check if we have a valid student name
+        const studentName = duplicateCheck.student_name || 'Unknown Student';
+        
         setRegistrationStatus({ 
-          message: `This person is already registered as "${duplicateCheck.student_name}" (ID: ${duplicateCheck.student_id})`, 
+          message: `This person is already registered as "${studentName}" (ID: ${duplicateCheck.student_id})`, 
           type: 'error' 
         });
         setIsRegistering(false);
         return;
+      } else if (duplicateCheck.message) {
+        // If there's a message but no duplicate, show the message
+        setRegistrationStatus({ 
+          message: duplicateCheck.message, 
+          type: 'info' 
+        });
+        // Allow registration to continue if there was just an outdated face model
       }
 
-      // Continue with registration if no duplicate found
+      // Continue with registration
       setRegistrationStatus({ message: 'Registering student...', type: '' });
 
       const response = await registerStudent(studentName, capturedImages, uploadedFiles);

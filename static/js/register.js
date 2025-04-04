@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const trainingStatus = document.getElementById('training-status');
     const imageUpload = document.getElementById('image-upload');
     const capturedImagesContainer = document.getElementById('captured-images-container');
+    const faceDetectionStatus = document.getElementById('face-detection-status');
     
     // Tab functionality
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -20,12 +21,28 @@ document.addEventListener('DOMContentLoaded', function() {
     let capturedImages = [];
     let uploadedFiles = [];
     
+    // Face detector instance
+    let faceDetector = null;
+    
     // Initialize camera
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(function(stream) {
                 video.srcObject = stream;
                 video.play();
+                
+                // Initialize face detector once video is playing
+                video.onloadedmetadata = function() {
+                    // Load face detection script
+                    const script = document.createElement('script');
+                    script.src = '/static/js/face-detector.js';
+                    script.onload = function() {
+                        // Initialize face detector
+                        faceDetector = new FaceDetector(video, faceDetectionStatus);
+                        faceDetector.startDetection();
+                    };
+                    document.head.appendChild(script);
+                };
             })
             .catch(function(error) {
                 console.error("Camera error: ", error);
@@ -45,6 +62,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add active class to clicked button and show corresponding content
             this.classList.add('active');
             document.getElementById(`${this.dataset.tab}-tab`).style.display = 'block';
+            
+            // Start or stop face detection based on active tab
+            if (faceDetector) {
+                if (this.dataset.tab === 'camera') {
+                    faceDetector.startDetection();
+                } else {
+                    faceDetector.stopDetection();
+                }
+            }
         });
     });
     
@@ -65,20 +91,29 @@ document.addEventListener('DOMContentLoaded', function() {
         registerBtn.disabled = !(hasImages && hasName);
     }
     
-    function captureImage() {
-        const context = canvas.getContext('2d');
+    async function captureImage() {
         // Draw the video frame to the canvas
+        const context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Convert to base64
-        const imageCapture = canvas.toDataURL('image/jpeg');
-        capturedImages.push(imageCapture);
-        
-        // Add to preview container
-        addImageToPreview(imageCapture);
-        
-        // Update UI
-        updateCaptureUI();
+        // If face detector is available, use it to crop the face
+        if (faceDetector) {
+            const result = await faceDetector.captureFace(canvas);
+            
+            if (result.faceDetected) {
+                capturedImages.push(result.imageData);
+                addImageToPreview(result.imageData);
+                updateCaptureUI();
+            } else {
+                alert('No face detected. Please ensure your face is clearly visible.');
+            }
+        } else {
+            // Fallback to full frame if face detector is not available
+            const imageCapture = canvas.toDataURL('image/jpeg');
+            capturedImages.push(imageCapture);
+            addImageToPreview(imageCapture);
+            updateCaptureUI();
+        }
     }
     
     function handleImageUpload(e) {
@@ -171,28 +206,60 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Show loading state
-        registrationStatus.textContent = 'Registering student...';
+        registrationStatus.textContent = 'Checking for duplicate registration...';
         registrationStatus.className = 'status-message';
-        
-        // Create form data
-        const formData = new FormData();
-        formData.append('name', studentNameInput.value);
-        formData.append('image_count', capturedImages.length);
-        
-        // Add captured images
-        for (let i = 0; i < capturedImages.length; i++) {
-            formData.append(`image_${i}`, capturedImages[i]);
+
+        // Create form data for checking duplicate face
+        const checkFormData = new FormData();
+        if (capturedImages.length > 0) {
+            checkFormData.append('image', capturedImages[0]);
+        } else if (uploadedFiles.length > 0) {
+            // For uploaded files, we'll need to send the first file
+            checkFormData.append('uploaded_image', uploadedFiles[0]);
         }
-        
-        // Add uploaded files
-        for (const file of uploadedFiles) {
-            formData.append('uploaded_images', file);
-        }
-        
-        // Send to server
-        fetch('/api/register_student', {
+
+        // First check for duplicate face
+        fetch('/api/check_duplicate_face', {
             method: 'POST',
-            body: formData
+            body: checkFormData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                // Handle duplicate face
+                const studentName = data.student_name || 'Unknown Student';
+                registrationStatus.textContent = `This person is already registered as "${studentName}" (ID: ${data.student_id})`;
+                registrationStatus.className = 'status-message error';
+                return Promise.reject(new Error('Duplicate registration'));
+            } else if (data.message) {
+                // Show informational message but continue registration
+                registrationStatus.textContent = data.message;
+                registrationStatus.className = 'status-message info';
+            }
+
+            // Continue with registration if no duplicate
+            registrationStatus.textContent = 'Registering student...';
+            
+            // Create form data for registration
+            const formData = new FormData();
+            formData.append('name', studentNameInput.value);
+            formData.append('image_count', capturedImages.length);
+            
+            // Add captured images
+            for (let i = 0; i < capturedImages.length; i++) {
+                formData.append(`image_${i}`, capturedImages[i]);
+            }
+            
+            // Add uploaded files
+            for (const file of uploadedFiles) {
+                formData.append('uploaded_images', file);
+            }
+            
+            // Send to server
+            return fetch('/api/register_student', {
+                method: 'POST',
+                body: formData
+            });
         })
         .then(response => response.json())
         .then(data => {
@@ -209,9 +276,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            registrationStatus.textContent = 'Error registering student.';
-            registrationStatus.className = 'status-message error';
+            if (error.message !== 'Duplicate registration') {
+                console.error('Error:', error);
+                registrationStatus.textContent = 'Error registering student.';
+                registrationStatus.className = 'status-message error';
+            }
         });
     }
     
