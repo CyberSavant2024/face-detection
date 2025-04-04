@@ -5,6 +5,8 @@ import pickle
 import face_recognition
 import base64
 from io import BytesIO
+import time
+import dlib  # Add dlib import
 
 class FaceRecognizer:
     def __init__(self, model_path='data/models/face_model.pkl'):
@@ -12,6 +14,13 @@ class FaceRecognizer:
         self.known_face_encodings = []
         self.known_face_names = []
         self.load_model()
+        
+        # Check for GPU availability
+        self.use_gpu = dlib.DLIB_USE_CUDA and dlib.cuda.get_num_devices() > 0
+        if self.use_gpu:
+            print(f"GPU acceleration available. Using {dlib.cuda.get_num_devices()} CUDA device(s)")
+        else:
+            print("GPU acceleration not available. Using CPU only")
     
     def load_model(self):
         """Load the trained model if it exists"""
@@ -44,9 +53,12 @@ class FaceRecognizer:
             if not os.path.isdir(student_dir):
                 return [], []
                 
-            # Get image files and limit to a reasonable number (e.g., 20 max per student)
+            # Get image files 
             image_files = [f for f in os.listdir(student_dir) if f.endswith(('.jpg', '.jpeg', '.png'))]
-            max_images_per_student = 20  # Limiting images per student for faster training
+            
+            # Limit images per student for faster training
+            max_images_per_student = 20
+            
             if len(image_files) > max_images_per_student:
                 # Use a subset with even distribution
                 image_files = image_files[::len(image_files) // max_images_per_student][:max_images_per_student]
@@ -54,40 +66,62 @@ class FaceRecognizer:
             # Return early if no images
             if not image_files:
                 return [], []
-                
+            
             # Process each image for this student
             for img_file in image_files:
                 img_path = f'{student_dir}/{img_file}'
                 try:
-                    # Load image and find face encodings - use lower resolution for speed
-                    image = face_recognition.load_image_file(img_path)
+                    # Load image
+                    image = cv2.imread(img_path)
                     
-                    # Resize large images for better performance
-                    h, w = image.shape[:2]
-                    if max(h, w) > 640:  # If image is larger than 640px in any dimension
-                        scale = 640 / max(h, w)
-                        image = cv2.resize(image, (int(w * scale), int(h * scale)))
+                    # Skip invalid images
+                    if image is None:
+                        print(f"Warning: Could not read image {img_path}")
+                        continue
+                        
+                    # Convert BGR to RGB (face_recognition uses RGB)
+                    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     
-                    # Use lower jitter values for faster training (1 instead of 3)
-                    face_encodings = face_recognition.face_encodings(image, num_jitters=1)
+                    # Use HOG face detector which is CPU-friendly
+                    face_locations = face_recognition.face_locations(
+                        rgb_image, 
+                        model='hog',
+                        number_of_times_to_upsample=1
+                    )
+                    
+                    # If no face found, try again with higher upsample
+                    if not face_locations:
+                        face_locations = face_recognition.face_locations(
+                            rgb_image,
+                            model='hog',
+                            number_of_times_to_upsample=2
+                        )
+                    
+                    # Keep jitters low for CPU
+                    num_jitters = 1
+                    
+                    # Get face encodings
+                    face_encodings = face_recognition.face_encodings(
+                        rgb_image,
+                        face_locations,
+                        num_jitters=num_jitters,
+                        model="small"  # Use small model for faster processing
+                    )
                     
                     # If a face was found, add it to our training data
                     if face_encodings:
                         student_encodings.append(face_encodings[0])
                 except Exception as e:
                     print(f"Error processing {img_path}: {e}")
-                    
-            # Only add one encoding per student if we're in a hurry
-            # (uncomment this if you want faster training but less accuracy)
-            # if student_encodings:
-            #     return [student_encodings[0]], [student_id]
             
             # Return all encodings for this student
             return student_encodings, [student_id] * len(student_encodings)
         
-        # Process students in parallel (but limit workers to avoid excessive memory usage)
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            # Process students in parallel with CPU-friendly settings
+            max_workers = 4  # Good balance for most systems
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = [executor.submit(process_student, student_id) for student_id in student_dirs]
                 
                 # Collect results as they complete
@@ -125,8 +159,9 @@ class FaceRecognizer:
         
         return len(encodings)
     
+    # Modified to use GPU acceleration when available
     def recognize_faces(self, image):
-        """Recognize faces in the given image"""
+        """Recognize faces in the given image with GPU acceleration if available"""
         # If model is not trained, return empty list
         if not self.known_face_encodings:
             return []
@@ -142,29 +177,30 @@ class FaceRecognizer:
         else:
             rgb_image = processed_image
             
-        # Find faces - try with multiple detection parameters
+        # Find faces with GPU-optimized model if available
         face_locations = face_recognition.face_locations(
             rgb_image, 
-            model='hog',  # Use 'cnn' for more accuracy if GPU available
-            number_of_times_to_upsample=2  # Increase to detect smaller faces
+            model='cnn' if self.use_gpu else 'hog',
+            number_of_times_to_upsample=1
         )
         
         # If no faces found, try again with different parameters
         if not face_locations:
             face_locations = face_recognition.face_locations(
                 rgb_image, 
-                model='hog',
-                number_of_times_to_upsample=1
+                model='hog',  # Fall back to HOG
+                number_of_times_to_upsample=2
             )
         
         if not face_locations:
             return []
             
-        # Get encodings with enhanced parameters
+        # Get encodings with enhanced parameters and GPU acceleration
         face_encodings = face_recognition.face_encodings(
             rgb_image, 
             face_locations,
-            num_jitters=2  # Increase for more accurate encoding
+            num_jitters=5 if self.use_gpu else 1,  # More jitters if GPU available
+            model="large" if self.use_gpu else "small"  # Use more accurate model with GPU
         )
         
         recognized_students = []
