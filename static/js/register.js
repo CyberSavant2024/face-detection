@@ -285,18 +285,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function trainModel() {
+        // Ask user if they want to force a full retraining
+        const forceRetrain = confirm(
+            "Do you want to perform a full retraining of all students?\n\n" +
+            "NO = Train only new students that haven't been processed yet (faster)\n" +
+            "YES = Retrain all students from scratch (slower but may be more accurate)"
+        );
+        
         // Show loading state
-        trainingStatus.textContent = 'Training model... This may take a moment.';
+        trainingStatus.textContent = forceRetrain ? 
+            'Training full model... This may take a few minutes.' : 
+            'Training model for new students... This may take a moment.';
         trainingStatus.className = 'status-message';
         
-        // Send training request
+        // Send training request with force_retrain parameter
         fetch('/api/train_model', {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                force_retrain: forceRetrain
+            })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                trainingStatus.textContent = 'Model trained successfully!';
+                const message = data.full_retrain ? 
+                    `Model fully retrained with ${data.encoding_count} encodings!` : 
+                    `Model updated with ${data.encoding_count} total encodings!`;
+                
+                trainingStatus.textContent = message;
                 trainingStatus.className = 'status-message success';
             } else {
                 trainingStatus.textContent = 'Failed to train model.';

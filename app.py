@@ -103,12 +103,29 @@ def register_student():
                 print(f"Error processing uploaded file {i}: {e}")
     
     print(f"Registered student {name} with ID {student_id} and {len(images)} images")
-    return jsonify({'success': True, 'student_id': student_id})
+    
+    # Train only this new student instead of rebuilding the entire model
+    encoding_count = face_recognizer.train_student(student_id)
+    
+    return jsonify({
+        'success': True, 
+        'student_id': student_id,
+        'encoding_count': encoding_count
+    })
 
 @app.route('/api/train_model', methods=['POST'])
 def train_model():
-    face_recognizer.train_model()
-    return jsonify({'success': True})
+    """Train the face recognition model - either incrementally or full retraining"""
+    # Check if we're forcing a full retrain
+    force_retrain = request.json.get('force_retrain', False) if request.is_json else False
+    
+    encoding_count = face_recognizer.train_model(force_retrain=force_retrain)
+    
+    return jsonify({
+        'success': True, 
+        'encoding_count': encoding_count, 
+        'full_retrain': force_retrain
+    })
 
 @app.route('/api/take_attendance', methods=['POST'])
 def take_attendance():
