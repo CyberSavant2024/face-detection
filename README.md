@@ -115,10 +115,8 @@ The Smart Attendance System automates attendance tracking using facial recogniti
   - `/frontend/src/components` - React components
   - `/frontend/src/services` - API service functions
 
-## License
 
-[Your chosen license]
 
-## Author
 
-[Your name/organization]
+
+
